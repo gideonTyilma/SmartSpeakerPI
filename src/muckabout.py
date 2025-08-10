@@ -64,6 +64,17 @@ PROMPT_ALIASES = {
     "witty": 3
 }
 
+def build_system_prompt(persona_idx: int, voice_name: str, assistant_name: str) -> str:
+    return (
+        f"{PROMPT_OPTIONS[persona_idx]} "
+        f"You are an AI home assistant named {assistant_name}. "
+        f"Your current text-to-speech voice preset is '{voice_name}'. "
+        "The voice preset is not the user's name. "
+        "Never assume the user's name unless they tell you. "
+        "If asked 'what is my name?', say you don't know. "
+        f"If asked 'what is your name?', say '{assistant_name}'."
+    )
+
 print("Select a voice:")
 for idx, name in enumerate(VOICE_NAMES):
     print(f"{idx}: {name}")
@@ -77,6 +88,11 @@ except ValueError:
     voice_idx = 7
 VOICE_NAME = VOICE_NAMES[voice_idx]
 
+# Choose an assistant display name (separate from voice preset)
+default_name = "Jarvis"
+name_choice = input(f"\nAssistant display name (leave empty for '{default_name}'): ").strip()
+ASSISTANT_NAME = name_choice if name_choice else default_name
+
 print("\nSelect a system prompt/personality:")
 for idx, prompt in enumerate(PROMPT_OPTIONS):
     print(f"{idx}: {prompt}")
@@ -88,13 +104,13 @@ try:
 except ValueError:
     print("Invalid choice, defaulting to first prompt.")
     prompt_idx = 0
-SYSTEM_PROMPT = PROMPT_OPTIONS[prompt_idx]
 
-ASSISTANT_NAME = VOICE_NAME  # your AI assistant name
+CURRENT_PROMPT_IDX = prompt_idx
+SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
 
 # --- Helper functions for mid-chat switching ---
 def choose_voice_interactive():
-    global VOICE_NAME, ASSISTANT_NAME
+    global VOICE_NAME, ASSISTANT_NAME, SYSTEM_PROMPT
     print("\n[Voice Switch] Available voices:")
     for idx, name in enumerate(VOICE_NAMES):
         print(f"{idx}: {name}")
@@ -113,12 +129,12 @@ def choose_voice_interactive():
         print("Invalid choice. Voice unchanged.")
         return False
     VOICE_NAME = target
-    ASSISTANT_NAME = VOICE_NAME
+    SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
     print(f"[Voice Switch] Voice set to '{VOICE_NAME}'.")
     return True
 
 def choose_personality_interactive():
-    global SYSTEM_PROMPT
+    global SYSTEM_PROMPT, CURRENT_PROMPT_IDX
     print("\n[Personality Switch] Options:")
     for idx, prompt in enumerate(PROMPT_OPTIONS):
         print(f"{idx}: {prompt}")
@@ -134,7 +150,8 @@ def choose_personality_interactive():
     if target_idx is None:
         print("Invalid choice. Personality unchanged.")
         return False
-    SYSTEM_PROMPT = PROMPT_OPTIONS[target_idx]
+    CURRENT_PROMPT_IDX = target_idx
+    SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
     print(f"[Personality Switch] Set to option {target_idx}.")
     return True
 
@@ -147,7 +164,7 @@ def closest_voice_or_none(name: str):
 
 def parse_and_handle_meta(transcript: str) -> bool:
     """Return True if we handled a meta command like switching voice/personality."""
-    global VOICE_NAME, SYSTEM_PROMPT, ASSISTANT_NAME
+    global VOICE_NAME, SYSTEM_PROMPT, ASSISTANT_NAME, CURRENT_PROMPT_IDX
     t = transcript.strip().lower()
     # Slash commands (typed)
     if t.startswith("/voice"):
@@ -156,7 +173,7 @@ def parse_and_handle_meta(transcript: str) -> bool:
             cand = closest_voice_or_none(parts[1])
             if cand:
                 VOICE_NAME = cand
-                ASSISTANT_NAME = VOICE_NAME
+                SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
                 print(f"[Voice Switch] Voice set to '{VOICE_NAME}'.")
             else:
                 print("[Voice Switch] Unknown voice. Launching selector.")
@@ -171,7 +188,8 @@ def parse_and_handle_meta(transcript: str) -> bool:
             if arg.isdigit():
                 idx = int(arg)
                 if 0 <= idx < len(PROMPT_OPTIONS):
-                    SYSTEM_PROMPT = PROMPT_OPTIONS[idx]
+                    CURRENT_PROMPT_IDX = idx
+                    SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
                     print(f"[Personality Switch] Set to option {idx}.")
                 else:
                     print("[Personality Switch] Invalid index. Launching selector.")
@@ -179,13 +197,27 @@ def parse_and_handle_meta(transcript: str) -> bool:
             else:
                 alias = arg.lower()
                 if alias in PROMPT_ALIASES:
-                    SYSTEM_PROMPT = PROMPT_OPTIONS[PROMPT_ALIASES[alias]]
+                    CURRENT_PROMPT_IDX = PROMPT_ALIASES[alias]
+                    SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
                     print(f"[Personality Switch] Set to '{alias}'.")
                 else:
                     print("[Personality Switch] Unknown alias. Launching selector.")
                     choose_personality_interactive()
         else:
             choose_personality_interactive()
+        return True
+    if t.startswith("/name"):
+        parts = t.split(maxlen:=2)
+        if len(parts) >= 2:
+            new_name = parts[1].strip()
+            if new_name:
+                ASSISTANT_NAME = new_name
+                SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
+                print(f"[Name] Assistant name set to '{ASSISTANT_NAME}'.")
+            else:
+                print("[Name] Please provide a non-empty name.")
+        else:
+            print("[Name] Usage: /name <assistant name>")
         return True
     # Spoken commands (via STT)
     if t in {"switch voice", "change voice"}:
@@ -196,7 +228,7 @@ def parse_and_handle_meta(transcript: str) -> bool:
         cand = closest_voice_or_none(name)
         if cand:
             VOICE_NAME = cand
-            ASSISTANT_NAME = VOICE_NAME
+            SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
             print(f"[Voice Switch] Voice set to '{VOICE_NAME}'.")
         else:
             print("[Voice Switch] Unknown voice. Launching selector.")
@@ -211,7 +243,8 @@ def parse_and_handle_meta(transcript: str) -> bool:
         if arg.isdigit():
             idx = int(arg)
             if 0 <= idx < len(PROMPT_OPTIONS):
-                SYSTEM_PROMPT = PROMPT_OPTIONS[idx]
+                CURRENT_PROMPT_IDX = idx
+                SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
                 print(f"[Personality Switch] Set to option {idx}.")
             else:
                 print("[Personality Switch] Invalid index. Launching selector.")
@@ -219,11 +252,30 @@ def parse_and_handle_meta(transcript: str) -> bool:
         else:
             alias = arg.lower()
             if alias in PROMPT_ALIASES:
-                SYSTEM_PROMPT = PROMPT_OPTIONS[PROMPT_ALIASES[alias]]
+                CURRENT_PROMPT_IDX = PROMPT_ALIASES[alias]
+                SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
                 print(f"[Personality Switch] Set to '{alias}'.")
             else:
                 print("[Personality Switch] Unknown alias. Launching selector.")
                 choose_personality_interactive()
+        return True
+    if t.startswith("call yourself "):
+        new_name = t.replace("call yourself ", "").strip()
+        if new_name:
+            ASSISTANT_NAME = new_name
+            SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
+            print(f"[Name] Assistant name set to '{ASSISTANT_NAME}'.")
+        else:
+            print("[Name] Please provide a non-empty name.")
+        return True
+    if t.startswith("your name is "):
+        new_name = t.replace("your name is ", "").strip()
+        if new_name:
+            ASSISTANT_NAME = new_name
+            SYSTEM_PROMPT = build_system_prompt(CURRENT_PROMPT_IDX, VOICE_NAME, ASSISTANT_NAME)
+            print(f"[Name] Assistant name set to '{ASSISTANT_NAME}'.")
+        else:
+            print("[Name] Please provide a non-empty name.")
         return True
     return False
 
@@ -308,6 +360,11 @@ def play_wav(path: str):
 def main():
     print("Low-latency push-to-talk ready.")
     print("Tip: make AIRHUG your default input/output in macOS Audio MIDI Setup.")
+    # Assistant introduces themselves audibly
+    intro_text = f"Hello, I am {ASSISTANT_NAME}, your assistant, using the {VOICE_NAME} voice."
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as intro_wav:
+        tts_to_wav_file(intro_text, intro_wav.name)
+        play_wav(intro_wav.name)
     try:
         while True:
             # 1) Capture
@@ -341,7 +398,7 @@ def main():
                     play_wav(tts_wav.name)
                 continue
 
-            print("thinking...")
+            print(f"{ASSISTANT_NAME}: thinking...")
             # 4) Get concise reply
             reply = get_chat_reply(transcript)
             print("answered")
