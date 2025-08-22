@@ -1,0 +1,12 @@
+stt_backend: openai
+tts_backend: openai
+sample_rate: 16000
+vad_level: 3           # 0..3 (3 = most aggressive)
+# input_device: null   # use system default on macOS
+# output_device: null  # use system default on macOS
+max_chars: 350
+block_ms: 20
+
+memory:
+  max_turns: 5
+  file: "baby_speaker/runtime/session_memory.json"

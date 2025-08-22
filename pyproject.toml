@@ -1,0 +1,20 @@
+[project]
+name = "baby-speaker"
+version = "0.1.0"
+description = "Smart Speaker core (platform-agnostic) with GPT, STT, TTS"
+requires-python = ">=3.9"
+dependencies = [
+  "numpy>=1.26",
+  "python-dotenv>=1.0.0",
+  "sounddevice>=0.4.6",
+  "webrtcvad>=2.0.10",
+  "openai>=1.0.0",
+  "pydub>=0.25.1",
+  "ffmpeg-python>=0.2.0",
+  "pyyaml>=6.0",
+]
+[project.scripts]
+baby-speaker = "baby_speaker.main:cli"
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

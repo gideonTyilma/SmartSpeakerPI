@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.build/
+dist/
+.eggs/
+.mypy_cache/
+.pytype/
+.pytest_cache/
+.coverage*
+htmlcov/
+.ipynb_checkpoints/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editors/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs & runtime
+logs/
+*.log
+*.tmp
+*.bak
+
+# Audio artifacts
+*.wav
+*.mp3
+*.raw
+
+# Local config/secrets
+.env
+*.local.yaml
+baby_speaker/runtime/session_memory.json
+
+# Node (if ever used for tooling)
+node_modules/
+
+# Coverage / reports
+coverage/
+report/
+
+# Build cache
+.cache/
